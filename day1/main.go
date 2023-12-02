@@ -17,7 +17,7 @@ import (
 func main() {
 	defer util.TimeTrack(time.Now(), "main")
 
-	fileScanner := util.ReadFile("./day1/input.txt")
+	fileScanner := util.ReadFile("./day1/demo_input.txt")
 
 	var calibrationValuesP1 []int
 	var calibrationValuesP2 []int
