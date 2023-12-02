@@ -6,6 +6,7 @@ import (
 	"math"
 	"strconv"
 	"strings"
+	"time"
 	"unicode"
 
 	"github.com/Goldziher/go-utils/maputils"
@@ -14,7 +15,9 @@ import (
 
 // https://adventofcode.com/2023/day/1
 func main() {
-	fileScanner := util.ReadFile("./day1/demo_input.txt")
+	defer util.TimeTrack(time.Now(), "main")
+
+	fileScanner := util.ReadFile("./day1/input.txt")
 
 	var calibrationValuesP1 []int
 	var calibrationValuesP2 []int
@@ -22,7 +25,7 @@ func main() {
 	for fileScanner.Scan() {
 		if fileScanner.Text() != "" {
 			calibrationLine := fileScanner.Text()
-			log.Default().Printf("Calibration line: %s", calibrationLine)
+			// log.Default().Printf("Calibration line: %s", calibrationLine)
 
 			calibrationValuesP1 = append(calibrationValuesP1, part1(calibrationLine))
 			calibrationValuesP2 = append(calibrationValuesP2, part2(calibrationLine))
@@ -122,7 +125,7 @@ func part2(calibrationLine string) int {
 		finalLast = lastNumber
 	}
 
-	log.Default().Printf("%d", finalFirst*10+finalLast)
+	// log.Default().Printf("%d", finalFirst*10+finalLast)
 
 	return finalFirst*10 + finalLast
 }
