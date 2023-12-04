@@ -1,6 +1,6 @@
-module adventofcode2023/day1
+module adventofcode2023/day4
 
-go 1.21.3
+go 1.21.4
 
 require github.com/Goldziher/go-utils v1.7.4
 
