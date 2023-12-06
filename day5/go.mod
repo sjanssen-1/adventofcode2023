@@ -1,3 +1,3 @@
-module adventofcode2023/day5
+module adventofcode2023/day6
 
 go 1.21.4
