@@ -2,7 +2,6 @@ package main
 
 import (
 	"adventofcode2023/util"
-	"fmt"
 	"log"
 	"reflect"
 	"time"
@@ -10,7 +9,7 @@ import (
 
 // https://adventofcode.com/2023/day/10
 func main() {
-	sketch := util.ReadFile("C:\\Users\\janss\\git\\adventofcode2023\\day10\\demo_input3.txt")
+	sketch := util.ReadFile("C:\\Users\\janss\\git\\adventofcode2023\\day10\\input.txt")
 	tiles := make([][]interface{}, 0)
 	line := 0
 	x, y := 0, 0
@@ -91,16 +90,13 @@ func parseTiles(sketchLine string, row int) ([]interface{}, int, int) {
 }
 
 type Tile struct {
-	x     int
-	y     int
-	value string
+	x         int
+	y         int
+	value     string
+	connected bool
 }
 
 type Ground struct {
-	Tile
-}
-
-type DummyGround struct {
 	Tile
 }
 
@@ -127,6 +123,8 @@ func loop(tiles [][]interface{}, x int, y int) int {
 
 	for currX != x || currY != y {
 		currentPipe := tiles[currY][currX].(Pipe)
+		currentPipe.connected = true
+		tiles[currY][currX] = currentPipe
 		var newX, newY int
 		if currentPipe.direction1.x == previousX && currentPipe.direction1.y == previousY {
 			newX = currentPipe.direction2.x
@@ -147,17 +145,68 @@ func loop(tiles [][]interface{}, x int, y int) int {
 }
 
 func findNextAfterStart(tiles [][]interface{}, startX int, startY int) (int, int) {
-	if startX-1 >= 0 && isConnected(tiles[startY][startX-1], startX, startY) {
-		log.Print("left!")
+	west := startX-1 >= 0 && isConnected(tiles[startY][startX-1], startX, startY)
+	east := startX+1 < len(tiles[0]) && isConnected(tiles[startY][startX+1], startX, startY)
+	north := startY-1 >= 0 && isConnected(tiles[startY-1][startX], startX, startY)
+	south := startY+1 < len(tiles) && isConnected(tiles[startY+1][startX], startX, startY)
+
+	if east && west {
+		log.Printf("Replacing start with %s", "-")
+		tiles[startY][startX] = Pipe{
+			Tile:       Tile{x: startX, y: startY, value: "-", connected: true},
+			direction1: Direction{x: startX + 1, y: startY}, // east
+			direction2: Direction{x: startX - 1, y: startY}, // west
+		}
+	} else if north && south {
+		log.Printf("Replacing start with %s", "|")
+		tiles[startY][startX] = Pipe{
+			Tile:       Tile{x: startX, y: startY, value: "|", connected: true},
+			direction1: Direction{x: startX, y: startY + 1}, // south
+			direction2: Direction{x: startX, y: startY - 1}, // north
+		}
+	} else if east && north {
+		log.Printf("Replacing start with %s", "L")
+		tiles[startY][startX] = Pipe{
+			Tile:       Tile{x: startX, y: startY, value: "L", connected: true},
+			direction1: Direction{x: startX + 1, y: startY}, // east
+			direction2: Direction{x: startX, y: startY - 1}, // north
+		}
+	} else if west && north {
+		log.Printf("Replacing start with %s", "J")
+		tiles[startY][startX] = Pipe{
+			Tile:       Tile{x: startX, y: startY, value: "J", connected: true},
+			direction1: Direction{x: startX - 1, y: startY}, // west
+			direction2: Direction{x: startX, y: startY - 1}, // north
+		}
+	} else if west && south {
+		log.Printf("Replacing start with %s", "7")
+		tiles[startY][startX] = Pipe{
+			Tile:       Tile{x: startX, y: startY, value: "7", connected: true},
+			direction1: Direction{x: startX - 1, y: startY}, // west
+			direction2: Direction{x: startX, y: startY + 1}, // south
+		}
+	} else if east && south {
+		log.Printf("Replacing start with %s", "F")
+		tiles[startY][startX] = Pipe{
+			Tile:       Tile{x: startX, y: startY, value: "F", connected: true},
+			direction1: Direction{x: startX + 1, y: startY}, // east
+			direction2: Direction{x: startX, y: startY + 1}, // south
+		}
+	} else {
+		panic("unable to replace animal tile")
+	}
+
+	if west {
+		log.Print("west!")
 		return tiles[startY][startX-1].(Pipe).x, tiles[startY][startX-1].(Pipe).y
-	} else if startX+1 < len(tiles[0]) && isConnected(tiles[startY][startX+1], startX, startY) {
-		log.Print("right!")
+	} else if east {
+		log.Print("east!")
 		return tiles[startY][startX+1].(Pipe).x, tiles[startY][startX+1].(Pipe).y
-	} else if startY-1 >= 0 && isConnected(tiles[startY-1][startX], startX, startY) {
-		log.Print("up!")
+	} else if north {
+		log.Print("north!")
 		return tiles[startY-1][startX].(Pipe).x, tiles[startY-1][startX].(Pipe).y
-	} else if startY+1 < len(tiles) && isConnected(tiles[startY+1][startX], startX, startY) {
-		log.Print("down!")
+	} else if south {
+		log.Print("south!")
 		return tiles[startY+1][startX].(Pipe).x, tiles[startY+1][startX].(Pipe).y
 	}
 	panic("No start found...")
@@ -178,37 +227,28 @@ func part1(tiles [][]interface{}, x int, y int) int {
 }
 
 func part2(tiles [][]interface{}) int {
-	debugPrintTiles(tiles)
-
-	expandedTiles := make([][]interface{}, 0)
+	amountOfInsideTiles := 0
+	isInside := false
 	for y := range tiles {
-		expandedTilesRow := make([]interface{}, 0)
 		for x := range tiles[0] {
-			expandedTilesRow = append(expandedTilesRow, tiles[y][x])
-			if reflect.TypeOf(tiles[y][x]) == reflect.TypeOf(Ground{}) {
-				expandedTilesRow = append(expandedTilesRow, DummyGround{Tile{value: "*"}})
+			tile := tiles[y][x]
+			if isGround(tile) && isInside {
+				amountOfInsideTiles++
+			} else if isPipe(tile) && !tile.(Pipe).connected && isInside {
+				amountOfInsideTiles++
+			} else if isPipe(tile) && tile.(Pipe).connected && (tiles[y][x].(Pipe).value == "|" || tiles[y][x].(Pipe).value == "F" || tiles[y][x].(Pipe).value == "7") {
+				isInside = !isInside
 			}
 		}
-		expandedTiles = append(expandedTiles, expandedTilesRow)
 	}
-	debugPrintTiles(expandedTiles)
 
-	return 0
+	return amountOfInsideTiles
 }
 
-func debugPrintTiles(tiles [][]interface{}) {
-	for y := range tiles {
-		for x := range tiles[0] {
-			if reflect.TypeOf(tiles[y][x]) == reflect.TypeOf(Ground{}) {
-				fmt.Print(tiles[y][x].(Ground).value)
-			} else if reflect.TypeOf(tiles[y][x]) == reflect.TypeOf(Pipe{}) {
-				fmt.Print(tiles[y][x].(Pipe).value)
-			} else if reflect.TypeOf(tiles[y][x]) == reflect.TypeOf(DummyGround{}) {
-				fmt.Print(tiles[y][x].(DummyGround).value)
-			} else {
-				fmt.Print(tiles[y][x].(Animal).value)
-			}
-		}
-		fmt.Println("")
-	}
+func isPipe(tile interface{}) bool {
+	return reflect.TypeOf(tile) == reflect.TypeOf(Pipe{})
+}
+
+func isGround(tile interface{}) bool {
+	return reflect.TypeOf(tile) == reflect.TypeOf(Ground{})
 }
