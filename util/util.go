@@ -32,3 +32,11 @@ func SpaceDelimitedStringToIntSlice(s string) []int {
 		return number
 	})
 }
+
+func ScannerToStringSlice(scanner bufio.Scanner) []string {
+	stringSlice := make([]string, 0)
+	for scanner.Scan() {
+		stringSlice = append(stringSlice, scanner.Text())
+	}
+	return stringSlice
+}
