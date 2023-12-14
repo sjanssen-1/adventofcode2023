@@ -9,52 +9,63 @@ import (
 
 // https://adventofcode.com/2023/day/12
 func main() {
-	conditionRecords := util.ScannerToStringSlice(*util.ReadFile("/Users/stefjanssens/git/adventofcode2023/day12/input.txt"))
+	conditionRecords := util.ScannerToStringSlice(*util.ReadFile("C:\\Users\\janss\\git\\adventofcode2023\\day12\\demo_input.txt"))
 
 	defer util.TimeTrack(time.Now(), "main")
 
 	log.Default().Printf("P1: %d", part1(conditionRecords))
-	log.Default().Printf("P2: %d", part2())
+	log.Default().Printf("P2: %d", part2(conditionRecords))
 }
 
 func part1(conditionRecords []string) int {
-	sumOfArrangements := 0
-	for i := range conditionRecords {
-		sumOfArrangements += calculatePossibleArrangements(conditionRecords[i])
-	}
-	return sumOfArrangements
+	return calculateSumOfArrangements(conditionRecords, 1)
 }
 
-func calculatePossibleArrangements(conditionRecord string) int {
+func calculatePossibleArrangements(conditionRecord string, fold int) int {
 	conditionRecordSplit := strings.Split(conditionRecord, " ")
 	record := conditionRecordSplit[0]
-	info := util.SpaceDelimitedStringToIntSlice(strings.ReplaceAll(conditionRecordSplit[1], ",", " "))
+	info := conditionRecordSplit[1]
 
-	possibleArrangements := 0
-	generatePermutations([]byte(record), 0, &possibleArrangements, info)
+	foldedRecord, _ := strings.CutSuffix(strings.Repeat(record+"?", fold), "?")
+	foldedInfo, _ := strings.CutSuffix(strings.Repeat(info+",", fold), ",")
+
+	infoInts := util.SpaceDelimitedStringToIntSlice(strings.ReplaceAll(foldedInfo, ",", " "))
+
+	possibleArrangements := findPossibleArrangements([]byte(foldedRecord), 0, infoInts)
 	log.Printf("%s produced %d arrangements", conditionRecord, possibleArrangements)
 	return possibleArrangements
 }
 
-func generatePermutations(s []byte, index int, count *int, info []int) {
-	if index == len(s) {
-		// fmt.Println(string(s))
-		if checkPossibleArrangement(string(s), info) {
-			log.Printf("%s is true", string(s))
-			*count++
-		}
-		return
+var memo = make(map[string]int)
+
+func findPossibleArrangements(s []byte, index int, info []int) int {
+	key := string(s)
+	if result, found := memo[key]; found {
+		return result
 	}
 
+	if index == len(s) {
+		if checkPossibleArrangement(string(s), info) {
+			return 1
+		} else {
+			return 0
+		}
+	}
+
+	possibleArrangements := 0
 	if s[index] == '?' {
 		s[index] = '#'
-		generatePermutations(s, index+1, count, info)
+		possibleArrangements += findPossibleArrangements(s, index+1, info)
 		s[index] = '.'
-		generatePermutations(s, index+1, count, info)
+		possibleArrangements += findPossibleArrangements(s, index+1, info)
 		s[index] = '?' // revert back to the original state
 	} else {
-		generatePermutations(s, index+1, count, info)
+		possibleArrangements += findPossibleArrangements(s, index+1, info)
 	}
+
+	memo[key] = possibleArrangements
+
+	return possibleArrangements
 }
 
 func checkPossibleArrangement(arrangement string, info []int) bool {
@@ -77,6 +88,16 @@ func checkPossibleArrangement(arrangement string, info []int) bool {
 	return (matchIndex == len(info) && groupSize == 0) || (matchIndex == len(info)-1 && info[matchIndex] == groupSize)
 }
 
-func part2() int {
-	return 0
+func calculateSumOfArrangements(conditionRecords []string, fold int) int {
+	sumOfArrangements := 0
+	for i := range conditionRecords {
+		test := calculatePossibleArrangements(conditionRecords[i], fold)
+		log.Print(test)
+		sumOfArrangements += test
+	}
+	return sumOfArrangements
+}
+
+func part2(conditionRecords []string) int {
+	return calculateSumOfArrangements(conditionRecords, 5)
 }
