@@ -2,6 +2,7 @@ package main
 
 import (
 	"adventofcode2023/util"
+	"fmt"
 	"log"
 	"strings"
 	"time"
@@ -9,7 +10,7 @@ import (
 
 // https://adventofcode.com/2023/day/12
 func main() {
-	conditionRecords := util.ScannerToStringSlice(*util.ReadFile("C:\\Users\\janss\\git\\adventofcode2023\\day12\\demo_input.txt"))
+	conditionRecords := util.ScannerToStringSlice(*util.ReadFile("C:\\Users\\janss\\git\\adventofcode2023\\day12\\input.txt"))
 
 	defer util.TimeTrack(time.Now(), "main")
 
@@ -31,68 +32,98 @@ func calculatePossibleArrangements(conditionRecord string, fold int) int {
 
 	infoInts := util.SpaceDelimitedStringToIntSlice(strings.ReplaceAll(foldedInfo, ",", " "))
 
-	possibleArrangements := findPossibleArrangements([]byte(foldedRecord), 0, infoInts)
-	log.Printf("%s produced %d arrangements", conditionRecord, possibleArrangements)
+	possibleArrangements := findPossibleArrangements(ConditionRecord{foldedRecord, infoInts})
+	// log.Printf("%s %s produced %d arrangements", foldedRecord, foldedInfo, possibleArrangements)
 	return possibleArrangements
+}
+
+type ConditionRecord struct {
+	record string
+	groups []int
 }
 
 var memo = make(map[string]int)
 
-func findPossibleArrangements(s []byte, index int, info []int) int {
-	key := string(s)
-	if result, found := memo[key]; found {
-		return result
+func createCacheKey(conditionRecord ConditionRecord) string {
+	return fmt.Sprintf("%s_%v", conditionRecord.record, conditionRecord.groups)
+}
+
+func pound(conditionRecord ConditionRecord, nextGroup int) int {
+	var thisGroup string
+	if nextGroup >= len(conditionRecord.record) {
+		thisGroup = conditionRecord.record[:len(conditionRecord.record)]
+	} else {
+		thisGroup = conditionRecord.record[:nextGroup]
 	}
 
-	if index == len(s) {
-		if checkPossibleArrangement(string(s), info) {
+	thisGroup = strings.ReplaceAll(thisGroup, "?", "#")
+
+	if strings.Count(thisGroup, "#") != nextGroup {
+		return 0
+	}
+
+	if len(conditionRecord.record) == nextGroup {
+		if len(conditionRecord.groups) == 1 {
 			return 1
 		} else {
 			return 0
 		}
 	}
 
-	possibleArrangements := 0
-	if s[index] == '?' {
-		s[index] = '#'
-		possibleArrangements += findPossibleArrangements(s, index+1, info)
-		s[index] = '.'
-		possibleArrangements += findPossibleArrangements(s, index+1, info)
-		s[index] = '?' // revert back to the original state
-	} else {
-		possibleArrangements += findPossibleArrangements(s, index+1, info)
+	if conditionRecord.record[nextGroup] == '.' || conditionRecord.record[nextGroup] == '?' {
+		return findPossibleArrangements(ConditionRecord{conditionRecord.record[nextGroup+1:], conditionRecord.groups[1:]})
 	}
-
-	memo[key] = possibleArrangements
-
-	return possibleArrangements
+	return 0
 }
 
-func checkPossibleArrangement(arrangement string, info []int) bool {
-	matchIndex := 0
-	groupSize := 0
-	for i := range arrangement {
-		if arrangement[i] == '#' {
-			groupSize++
+func dot(conditionRecord ConditionRecord) int {
+	return findPossibleArrangements(ConditionRecord{conditionRecord.record[1:], conditionRecord.groups})
+}
+
+func findPossibleArrangements(conditionRecord ConditionRecord) int {
+	if result, found := memo[createCacheKey(conditionRecord)]; found {
+		// log.Print("CACHE HIT!")
+		return result
+	}
+
+	record := conditionRecord.record
+	groups := conditionRecord.groups
+
+	if len(groups) == 0 {
+		if !strings.Contains(string(record), "#") {
+			memo[createCacheKey(conditionRecord)] = 1
+			return 1
 		} else {
-			if groupSize > 0 && matchIndex == len(info) {
-				return false
-			} else if groupSize > 0 && info[matchIndex] == groupSize {
-				groupSize = 0
-				matchIndex++
-			} else if groupSize > 0 && info[matchIndex] != groupSize {
-				return false
-			}
+			memo[createCacheKey(conditionRecord)] = 0
+			return 0
 		}
 	}
-	return (matchIndex == len(info) && groupSize == 0) || (matchIndex == len(info)-1 && info[matchIndex] == groupSize)
+
+	if len(record) == 0 {
+		memo[createCacheKey(conditionRecord)] = 0
+		return 0
+	}
+
+	nextCharacter := record[0]
+	nextGroup := groups[0]
+
+	var out int
+	switch nextCharacter {
+	case '#':
+		out = pound(conditionRecord, nextGroup)
+	case '.':
+		out = dot(conditionRecord)
+	case '?':
+		out = dot(conditionRecord) + pound(conditionRecord, nextGroup)
+	}
+	memo[createCacheKey(conditionRecord)] = out
+	return out
 }
 
 func calculateSumOfArrangements(conditionRecords []string, fold int) int {
 	sumOfArrangements := 0
 	for i := range conditionRecords {
 		test := calculatePossibleArrangements(conditionRecords[i], fold)
-		log.Print(test)
 		sumOfArrangements += test
 	}
 	return sumOfArrangements
