@@ -4,7 +4,6 @@ import (
 	"adventofcode2023/util"
 	"fmt"
 	"log"
-	"sort"
 	"time"
 )
 
@@ -82,14 +81,6 @@ func findHorizontalReflection(valley []string, fixSmudge bool) int {
 		previousHorizontal = valley[y]
 	}
 
-	sort.Slice(matches, func(i, j int) bool {
-		// TODO fix sorting
-		if matches[i].withSmudge && !matches[j].withSmudge {
-			return true
-		}
-		return false
-	})
-
 	if len(matches) != 0 {
 	OUTER:
 		for _, match := range matches {
@@ -105,6 +96,7 @@ func findHorizontalReflection(valley []string, fixSmudge bool) int {
 								continue OUTER
 							} else if !smudgeFixed && isSmudged(valley[i], valley[j]) {
 								smudgeFixed = true
+								j--
 								continue
 							}
 						}
@@ -123,6 +115,7 @@ func findHorizontalReflection(valley []string, fixSmudge bool) int {
 								continue OUTER
 							} else if !smudgeFixed && isSmudged(valley[i], valley[j]) {
 								smudgeFixed = true
+								j++
 								continue
 							}
 						}
@@ -132,7 +125,11 @@ func findHorizontalReflection(valley []string, fixSmudge bool) int {
 					}
 				}
 			}
-			return match.index
+			if fixSmudge && (smudgeFixed || match.withSmudge) {
+				return match.index
+			} else if !fixSmudge {
+				return match.index
+			}
 		}
 	}
 	return -1
@@ -156,11 +153,11 @@ func rotateValley(valley []string) []string {
 	return rotatedValley
 }
 
-func debug(valley []string) {
-	for _, v := range valley {
-		fmt.Println(v)
-	}
-}
+// func debug(valley []string) {
+// 	for _, v := range valley {
+// 		fmt.Println(v)
+// 	}
+// }
 
 func part2(valleyOfMirrors [][]string) int {
 	summary := 0
