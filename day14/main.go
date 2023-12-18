@@ -131,17 +131,29 @@ func debug(dish [][]byte) {
 }
 
 func part2(dish [][]byte) int {
-	totalIterations := 1000000000
-	for i := 0; i < totalIterations; i++ {
-		if (i+1)%(totalIterations/100) == 0 || i+1 == totalIterations {
-			percentageDone := float64(i+1) / float64(totalIterations) * 100
-			fmt.Printf("Progress: %.1f%%\n", percentageDone)
-		}
+	calculations := make([]int, 0)
+	for i := 0; i < 1000; i++ {
 		tiltNorth(&dish)
 		tiltWest(&dish)
 		tiltSouth(&dish)
 		tiltEast(&dish)
+
+		calculations = append(calculations, calculateLoad(dish))
 	}
 
-	return calculateLoad(dish)
+	turtle, hare := 0, 0
+	for {
+		if turtle != 0 && calculations[turtle] == calculations[hare] {
+			log.Printf("Cycle after %d", turtle)
+			break
+		} else {
+			turtle++
+			hare += 2
+		}
+	}
+	totalIterations := 1000000000
+	remaining := totalIterations - (turtle + 1)
+	cycle := calculations[turtle:hare]
+	index := remaining % (hare - turtle)
+	return cycle[index]
 }
