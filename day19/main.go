@@ -12,7 +12,7 @@ import (
 
 // https://adventofcode.com/2023/day/19
 func main() {
-	theSystem := util.ReadFile("C:\\Users\\janss\\git\\adventofcode2023\\day19\\input.txt")
+	theSystem := util.ReadFile("/Users/stefjanssens/git/adventofcode2023/day19/demo_input.txt")
 	defer util.TimeTrack(time.Now(), "main")
 
 	workflows := make(map[string]Workflow)
@@ -38,7 +38,7 @@ func main() {
 	// log.Print(parts)
 
 	log.Default().Printf("P1: %d", part1(workflows, parts))
-	log.Default().Printf("P2: %d", part2())
+	log.Default().Printf("P2: %d", part2(workflows))
 }
 
 type Workflow struct {
@@ -155,12 +155,97 @@ flows:
 	}
 }
 
+type QueuePart struct {
+	name   string
+	ranges Ranges
+}
+
+type Ranges struct {
+	xRange Range
+	mRange Range
+	aRange Range
+	sRange Range
+}
+
+type Range struct {
+	high int
+	low  int
+}
+
+func processAllParts(workflows map[string]Workflow) int {
+	var xRange [4000]int
+	var mRange [4000]int
+	var aRange [4000]int
+	var sRange [4000]int
+
+	queue := []QueuePart{QueuePart{"in", Ranges{Range{}, Range{}, Range{}, Range{}}}}
+
+	for len(queue) > 0 {
+		curr := queue[:1]
+		queue = queue[1:]
+	}
+
+	combinations := 0
+
+	for _, flow := range toCheck {
+		for _, condition := range flow.conditions {
+			if condition.isFinal {
+				if condition.next == "A" {
+					// ignore
+				} else if condition.next == "R" {
+					// ignore
+				} else {
+					start = workflows[condition.next]
+					continue flows
+				}
+			}
+		}
+	}
+
+flows:
+	for {
+		for _, condition := range start.conditions {
+			if condition.isFinal {
+				if condition.next == "A" {
+					// ignore
+				} else if condition.next == "R" {
+					// ignore
+				} else {
+					start = workflows[condition.next]
+					continue flows
+				}
+			}
+
+			var passed bool
+			switch condition.operand {
+			case ">":
+				// passed = getCategory(condition.category, part) > condition.value
+			case "<":
+				// passed = getCategory(condition.category, part) < condition.value
+			}
+
+			if passed {
+				if condition.next == "A" {
+					// ignore
+				} else if condition.next == "R" {
+					// ignore
+				} else {
+					start = workflows[condition.next]
+					continue flows
+				}
+			}
+		}
+	}
+
+	return len(xRange) * len(mRange) * len(aRange) * len(sRange)
+}
+
 func part1(workflows map[string]Workflow, parts []Part) int {
 	return sliceutils.Reduce(parts, func(acc int, value Part, index int, slice []Part) int {
 		return acc + processPart(workflows, value)
 	}, 0)
 }
 
-func part2() int {
-	return 0
+func part2(workflows map[string]Workflow) int {
+	return processAllParts(workflows)
 }
