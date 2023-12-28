@@ -12,7 +12,7 @@ import (
 
 // https://adventofcode.com/2023/day/19
 func main() {
-	theSystem := util.ReadFile("/Users/stefjanssens/git/adventofcode2023/day19/demo_input.txt")
+	theSystem := util.ReadFile("C:\\Users\\janss\\git\\adventofcode2023\\day19\\demo_input.txt")
 	defer util.TimeTrack(time.Now(), "main")
 
 	workflows := make(map[string]Workflow)
@@ -67,7 +67,7 @@ func NewWorkFlow(s string) Workflow {
 
 type Condition struct {
 	category string
-	operand  string
+	operator string
 	value    int
 	next     string
 	isFinal  bool
@@ -134,7 +134,7 @@ flows:
 			}
 
 			var passed bool
-			switch condition.operand {
+			switch condition.operator {
 			case ">":
 				passed = getCategory(condition.category, part) > condition.value
 			case "<":
@@ -156,8 +156,9 @@ flows:
 }
 
 type QueuePart struct {
-	name   string
-	ranges Ranges
+	name           string
+	conditionIndex int
+	ranges         Ranges
 }
 
 type Ranges struct {
@@ -168,76 +169,148 @@ type Ranges struct {
 }
 
 type Range struct {
-	high int
 	low  int
+	high int
+}
+
+func calculateCombinations(ranges Ranges) int {
+	return (ranges.xRange.high - ranges.xRange.low + 1) *
+		(ranges.mRange.high - ranges.mRange.low + 1) *
+		(ranges.aRange.high - ranges.aRange.low + 1) *
+		(ranges.sRange.high - ranges.sRange.low + 1)
+}
+
+func isCompletelyInRange(low int, high int, operator string, value int) bool {
+	switch operator {
+	case ">":
+		return low > value
+	case "<":
+		return high < value
+	}
+
+	panic("dumb operator")
 }
 
 func processAllParts(workflows map[string]Workflow) int {
-	var xRange [4000]int
-	var mRange [4000]int
-	var aRange [4000]int
-	var sRange [4000]int
-
-	queue := []QueuePart{QueuePart{"in", Ranges{Range{}, Range{}, Range{}, Range{}}}}
-
-	for len(queue) > 0 {
-		curr := queue[:1]
-		queue = queue[1:]
-	}
-
+	queue := []QueuePart{QueuePart{"in", 0, Ranges{Range{1, 4000}, Range{1, 4000}, Range{1, 4000}, Range{1, 4000}}}}
 	combinations := 0
 
-	for _, flow := range toCheck {
-		for _, condition := range flow.conditions {
+queue:
+	for len(queue) > 0 {
+		currQueue := queue[:1][0]
+		currFlow := workflows[currQueue.name]
+		queue = queue[1:]
+
+		for i := currQueue.conditionIndex; i < len(currFlow.conditions); i++ {
+			condition := currFlow.conditions[i]
+
 			if condition.isFinal {
 				if condition.next == "A" {
-					// ignore
+					combinations += calculateCombinations(currQueue.ranges)
 				} else if condition.next == "R" {
-					// ignore
+					continue queue
 				} else {
-					start = workflows[condition.next]
-					continue flows
+					// bug: should continue to the next condition ; remove for loop
+					// put work on queue
+					continue
 				}
 			}
+
+			var low int
+			var high int
+
+			switch condition.category {
+			case "x":
+				high = currQueue.ranges.xRange.high
+				low = currQueue.ranges.xRange.low
+			case "m":
+				high = currQueue.ranges.mRange.high
+				low = currQueue.ranges.mRange.low
+			case "a":
+				high = currQueue.ranges.aRange.high
+				low = currQueue.ranges.aRange.low
+			case "s":
+				high = currQueue.ranges.sRange.high
+				low = currQueue.ranges.sRange.low
+			}
+
+			// TODO figure out how to check if true or not --> check if completely satisfies condition
+
+			if isCompletelyInRange(low, high, condition.operator, condition.value) && condition.next == "A" {
+				// calculate the combinations and continue with the queue
+				combinations += calculateCombinations(currQueue.ranges)
+			} else if isCompletelyInRange(low, high, condition.operator, condition.value) && condition.next == "R" {
+				// just continue with the queue
+				continue queue
+			} else {
+				switch condition.category {
+				case "x":
+					// check the possible splits and put new work on queue on the current condition index
+					switch condition.operator {
+					case "<":
+						// true branch
+						queue = append(queue, QueuePart{condition.next, 0, Ranges{Range{currQueue.ranges.xRange.low, condition.value - 1}, currQueue.ranges.mRange, currQueue.ranges.aRange, currQueue.ranges.sRange}})
+						// false branch
+						queue = append(queue, QueuePart{currQueue.name, currQueue.conditionIndex + 1, Ranges{Range{condition.value, currQueue.ranges.xRange.high}, currQueue.ranges.mRange, currQueue.ranges.aRange, currQueue.ranges.sRange}})
+					case ">":
+						// false branch
+						queue = append(queue, QueuePart{currQueue.name, currQueue.conditionIndex + 1, Ranges{Range{currQueue.ranges.xRange.low, condition.value}, currQueue.ranges.mRange, currQueue.ranges.aRange, currQueue.ranges.sRange}})
+						// true branch
+						queue = append(queue, QueuePart{condition.next, 0, Ranges{Range{condition.value + 1, currQueue.ranges.xRange.high}, currQueue.ranges.mRange, currQueue.ranges.aRange, currQueue.ranges.sRange}})
+					}
+					continue queue
+				case "m":
+					// check the possible splits and put new work on queue on the current condition index
+					switch condition.operator {
+					case "<":
+						// true branch
+						queue = append(queue, QueuePart{condition.next, 0, Ranges{currQueue.ranges.xRange, Range{currQueue.ranges.mRange.low, condition.value - 1}, currQueue.ranges.aRange, currQueue.ranges.sRange}})
+						// false branch
+						queue = append(queue, QueuePart{currQueue.name, currQueue.conditionIndex + 1, Ranges{currQueue.ranges.xRange, Range{condition.value, currQueue.ranges.mRange.high}, currQueue.ranges.aRange, currQueue.ranges.sRange}})
+					case ">":
+						// false branch
+						queue = append(queue, QueuePart{currQueue.name, currQueue.conditionIndex + 1, Ranges{currQueue.ranges.xRange, Range{currQueue.ranges.mRange.low, condition.value}, currQueue.ranges.aRange, currQueue.ranges.sRange}})
+						// true branch
+						queue = append(queue, QueuePart{condition.next, 0, Ranges{currQueue.ranges.xRange, Range{condition.value + 1, currQueue.ranges.mRange.high}, currQueue.ranges.aRange, currQueue.ranges.sRange}})
+					}
+					continue queue
+				case "a":
+					// check the possible splits and put new work on queue on the current condition index
+					switch condition.operator {
+					case "<":
+						// true branch
+						queue = append(queue, QueuePart{condition.next, 0, Ranges{currQueue.ranges.xRange, currQueue.ranges.mRange, Range{currQueue.ranges.sRange.low, condition.value - 1}, currQueue.ranges.sRange}})
+						// false branch
+						queue = append(queue, QueuePart{currQueue.name, currQueue.conditionIndex + 1, Ranges{currQueue.ranges.xRange, currQueue.ranges.mRange, Range{condition.value, currQueue.ranges.sRange.high}, currQueue.ranges.sRange}})
+					case ">":
+						// false branch
+						queue = append(queue, QueuePart{currQueue.name, currQueue.conditionIndex + 1, Ranges{currQueue.ranges.xRange, currQueue.ranges.mRange, Range{currQueue.ranges.aRange.low, condition.value}, currQueue.ranges.sRange}})
+						// true branch
+						queue = append(queue, QueuePart{condition.next, 0, Ranges{currQueue.ranges.xRange, currQueue.ranges.mRange, Range{condition.value + 1, currQueue.ranges.aRange.high}, currQueue.ranges.sRange}})
+					}
+					continue queue
+				case "s":
+					// check the possible splits and put new work on queue on the current condition index
+					switch condition.operator {
+					case "<":
+						// true branch
+						queue = append(queue, QueuePart{condition.next, 0, Ranges{currQueue.ranges.xRange, currQueue.ranges.mRange, currQueue.ranges.aRange, Range{currQueue.ranges.sRange.low, condition.value - 1}}})
+						// false branch
+						queue = append(queue, QueuePart{currQueue.name, currQueue.conditionIndex + 1, Ranges{currQueue.ranges.xRange, currQueue.ranges.mRange, currQueue.ranges.aRange, Range{condition.value, currQueue.ranges.sRange.high}}})
+					case ">":
+						// true branch
+						queue = append(queue, QueuePart{currQueue.name, currQueue.conditionIndex + 1, Ranges{currQueue.ranges.xRange, currQueue.ranges.mRange, currQueue.ranges.aRange, Range{currQueue.ranges.sRange.low, condition.value}}})
+						// false branch
+						queue = append(queue, QueuePart{condition.next, 0, Ranges{currQueue.ranges.xRange, currQueue.ranges.mRange, currQueue.ranges.aRange, Range{condition.value + 1, currQueue.ranges.sRange.high}}})
+					}
+					continue queue
+				}
+			}
+
 		}
 	}
 
-flows:
-	for {
-		for _, condition := range start.conditions {
-			if condition.isFinal {
-				if condition.next == "A" {
-					// ignore
-				} else if condition.next == "R" {
-					// ignore
-				} else {
-					start = workflows[condition.next]
-					continue flows
-				}
-			}
-
-			var passed bool
-			switch condition.operand {
-			case ">":
-				// passed = getCategory(condition.category, part) > condition.value
-			case "<":
-				// passed = getCategory(condition.category, part) < condition.value
-			}
-
-			if passed {
-				if condition.next == "A" {
-					// ignore
-				} else if condition.next == "R" {
-					// ignore
-				} else {
-					start = workflows[condition.next]
-					continue flows
-				}
-			}
-		}
-	}
-
-	return len(xRange) * len(mRange) * len(aRange) * len(sRange)
+	return combinations
 }
 
 func part1(workflows map[string]Workflow, parts []Part) int {
