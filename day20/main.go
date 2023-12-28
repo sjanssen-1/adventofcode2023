@@ -1,0 +1,165 @@
+package main
+
+import (
+	"adventofcode2023/util"
+	"log"
+	"slices"
+	"strings"
+	"time"
+
+	"github.com/Goldziher/go-utils/maputils"
+)
+
+// https://adventofcode.com/2023/day/120
+func main() {
+	moduleConfiguration := util.ScannerToStringSlice(*util.ReadFile("/Users/stefjanssens/git/adventofcode2023/day20/input.txt"))
+	defer util.TimeTrack(time.Now(), "main")
+
+	modules := make(map[string]Module)
+
+	for _, moduleConfig := range moduleConfiguration {
+		split := strings.Split(moduleConfig, " -> ")
+		if split[0] == "broadcaster" {
+			modules["broadcaster"] = NewModule(split[0], split[1])
+		} else {
+			modules[split[0][1:]] = NewModule(split[0], split[1])
+		}
+	}
+
+	for conjunctionName, conjunctionModule := range modules {
+		if conjunctionModule.isConjunction {
+			for sourceName, sourceModule := range modules {
+				if slices.Contains(sourceModule.destinations, conjunctionName) {
+					conjunctionModule.sourcesMemory[sourceName] = false
+				}
+			}
+			modules[conjunctionName] = conjunctionModule
+		}
+	}
+
+	log.Default().Printf("P1: %d", part1(modules))
+	log.Default().Printf("P2: %d", part2(modules))
+}
+
+type Module struct {
+	isFlipFlop    bool
+	isConjunction bool
+	isOn          bool
+	destinations  []string
+	sourcesMemory map[string]bool
+}
+
+func NewModule(name string, destinations string) Module {
+
+	module := Module{}
+	module.destinations = strings.Split(destinations, ", ")
+	module.sourcesMemory = make(map[string]bool)
+
+	if name[0] == '%' {
+		// flipflop
+		module.isFlipFlop = true
+	} else {
+		// conjunction
+		module.isConjunction = true
+	}
+	return module
+}
+
+type Pulse struct {
+	isHigh      bool
+	source      string
+	destination string
+}
+
+func pressButton(modules map[string]Module) (int, int, bool) {
+	lows := 0
+	highs := 0
+
+	rxLow := false
+
+	buffer := []Pulse{{false, "me", "broadcaster"}}
+
+	for len(buffer) > 0 {
+		pulse := buffer[0]
+		buffer = buffer[1:]
+
+		if pulse.isHigh {
+			highs++
+		} else {
+			lows++
+		}
+
+		module, exists := modules[pulse.destination]
+		if !exists {
+			if !pulse.isHigh {
+				rxLow = true
+			}
+			continue
+		}
+
+		if pulse.destination == "broadcaster" {
+			for _, destination := range module.destinations {
+				buffer = append(buffer, Pulse{false, pulse.destination, destination})
+			}
+		} else if module.isFlipFlop {
+			if pulse.isHigh {
+				continue
+			}
+			if module.isOn {
+				module.isOn = false
+				for _, destination := range module.destinations {
+					buffer = append(buffer, Pulse{false, pulse.destination, destination})
+				}
+			} else {
+				module.isOn = true
+				for _, destination := range module.destinations {
+					buffer = append(buffer, Pulse{true, pulse.destination, destination})
+				}
+			}
+		} else {
+			if pulse.isHigh {
+				module.sourcesMemory[pulse.source] = true
+			} else {
+				module.sourcesMemory[pulse.source] = false
+			}
+
+			if !slices.Contains(maputils.Values(module.sourcesMemory), false) {
+				// all highs ; send low
+				for _, destination := range module.destinations {
+					buffer = append(buffer, Pulse{false, pulse.destination, destination})
+				}
+			} else {
+				// send high
+				for _, destination := range module.destinations {
+					buffer = append(buffer, Pulse{true, pulse.destination, destination})
+				}
+			}
+		}
+		modules[pulse.destination] = module
+	}
+
+	return lows, highs, rxLow
+}
+
+func part1(modules map[string]Module) int {
+	totalLows, totalHighs := 0, 0
+
+	for i := 0; i < 1000; i++ {
+		lows, highs, _ := pressButton(modules)
+		totalLows += lows
+		totalHighs += highs
+	}
+	return totalLows * totalHighs
+}
+
+func part2(modules map[string]Module) int {
+	counter := 1
+	for {
+		_, _, rx := pressButton(modules)
+		if rx {
+			break
+		}
+		counter++
+	}
+	return counter
+}
