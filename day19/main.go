@@ -12,7 +12,7 @@ import (
 
 // https://adventofcode.com/2023/day/19
 func main() {
-	theSystem := util.ReadFile("C:\\Users\\janss\\git\\adventofcode2023\\day19\\demo_input.txt")
+	theSystem := util.ReadFile("/Users/stefjanssens/git/adventofcode2023/day19/input.txt")
 	defer util.TimeTrack(time.Now(), "main")
 
 	workflows := make(map[string]Workflow)
@@ -195,121 +195,119 @@ func processAllParts(workflows map[string]Workflow) int {
 	queue := []QueuePart{QueuePart{"in", 0, Ranges{Range{1, 4000}, Range{1, 4000}, Range{1, 4000}, Range{1, 4000}}}}
 	combinations := 0
 
-queue:
 	for len(queue) > 0 {
 		currQueue := queue[:1][0]
-		currFlow := workflows[currQueue.name]
 		queue = queue[1:]
 
-		for i := currQueue.conditionIndex; i < len(currFlow.conditions); i++ {
-			condition := currFlow.conditions[i]
+		if currQueue.name == "A" {
+			combinations += calculateCombinations(currQueue.ranges)
+			continue
+		} else if currQueue.name == "R" {
+			continue
+		}
 
-			if condition.isFinal {
-				if condition.next == "A" {
-					combinations += calculateCombinations(currQueue.ranges)
-				} else if condition.next == "R" {
-					continue queue
-				} else {
-					// bug: should continue to the next condition ; remove for loop
-					// put work on queue
-					continue
-				}
+		currFlow := workflows[currQueue.name]
+		condition := currFlow.conditions[currQueue.conditionIndex]
+
+		if condition.isFinal {
+			if condition.next == "A" {
+				combinations += calculateCombinations(currQueue.ranges)
+				continue
+			} else if condition.next == "R" {
+				continue
+			} else {
+				// bug: should continue to the next condition ; remove for loop
+				// put work on queue
+				queue = append(queue, QueuePart{condition.next, 0, currQueue.ranges})
+				continue
 			}
+		}
 
-			var low int
-			var high int
+		var low int
+		var high int
 
+		switch condition.category {
+		case "x":
+			high = currQueue.ranges.xRange.high
+			low = currQueue.ranges.xRange.low
+		case "m":
+			high = currQueue.ranges.mRange.high
+			low = currQueue.ranges.mRange.low
+		case "a":
+			high = currQueue.ranges.aRange.high
+			low = currQueue.ranges.aRange.low
+		case "s":
+			high = currQueue.ranges.sRange.high
+			low = currQueue.ranges.sRange.low
+		}
+
+		if isCompletelyInRange(low, high, condition.operator, condition.value) && condition.next == "A" {
+			// calculate the combinations and continue with the queue
+			combinations += calculateCombinations(currQueue.ranges)
+		} else if isCompletelyInRange(low, high, condition.operator, condition.value) && condition.next == "R" {
+			// just continue with the queue
+			continue
+		} else {
 			switch condition.category {
 			case "x":
-				high = currQueue.ranges.xRange.high
-				low = currQueue.ranges.xRange.low
+				// check the possible splits and put new work on queue on the current condition index
+				switch condition.operator {
+				case "<":
+					// true branch
+					queue = append(queue, QueuePart{condition.next, 0, Ranges{Range{currQueue.ranges.xRange.low, condition.value - 1}, currQueue.ranges.mRange, currQueue.ranges.aRange, currQueue.ranges.sRange}})
+					// false branch
+					queue = append(queue, QueuePart{currQueue.name, currQueue.conditionIndex + 1, Ranges{Range{condition.value, currQueue.ranges.xRange.high}, currQueue.ranges.mRange, currQueue.ranges.aRange, currQueue.ranges.sRange}})
+				case ">":
+					// false branch
+					queue = append(queue, QueuePart{currQueue.name, currQueue.conditionIndex + 1, Ranges{Range{currQueue.ranges.xRange.low, condition.value}, currQueue.ranges.mRange, currQueue.ranges.aRange, currQueue.ranges.sRange}})
+					// true branch
+					queue = append(queue, QueuePart{condition.next, 0, Ranges{Range{condition.value + 1, currQueue.ranges.xRange.high}, currQueue.ranges.mRange, currQueue.ranges.aRange, currQueue.ranges.sRange}})
+				}
 			case "m":
-				high = currQueue.ranges.mRange.high
-				low = currQueue.ranges.mRange.low
+				// check the possible splits and put new work on queue on the current condition index
+				switch condition.operator {
+				case "<":
+					// true branch
+					queue = append(queue, QueuePart{condition.next, 0, Ranges{currQueue.ranges.xRange, Range{currQueue.ranges.mRange.low, condition.value - 1}, currQueue.ranges.aRange, currQueue.ranges.sRange}})
+					// false branch
+					queue = append(queue, QueuePart{currQueue.name, currQueue.conditionIndex + 1, Ranges{currQueue.ranges.xRange, Range{condition.value, currQueue.ranges.mRange.high}, currQueue.ranges.aRange, currQueue.ranges.sRange}})
+				case ">":
+					// false branch
+					queue = append(queue, QueuePart{currQueue.name, currQueue.conditionIndex + 1, Ranges{currQueue.ranges.xRange, Range{currQueue.ranges.mRange.low, condition.value}, currQueue.ranges.aRange, currQueue.ranges.sRange}})
+					// true branch
+					queue = append(queue, QueuePart{condition.next, 0, Ranges{currQueue.ranges.xRange, Range{condition.value + 1, currQueue.ranges.mRange.high}, currQueue.ranges.aRange, currQueue.ranges.sRange}})
+				}
 			case "a":
-				high = currQueue.ranges.aRange.high
-				low = currQueue.ranges.aRange.low
+				// check the possible splits and put new work on queue on the current condition index
+				switch condition.operator {
+				case "<":
+					// true branch
+					queue = append(queue, QueuePart{condition.next, 0, Ranges{currQueue.ranges.xRange, currQueue.ranges.mRange, Range{currQueue.ranges.aRange.low, condition.value - 1}, currQueue.ranges.sRange}})
+					// false branch
+					queue = append(queue, QueuePart{currQueue.name, currQueue.conditionIndex + 1, Ranges{currQueue.ranges.xRange, currQueue.ranges.mRange, Range{condition.value, currQueue.ranges.aRange.high}, currQueue.ranges.sRange}})
+				case ">":
+					// false branch
+					queue = append(queue, QueuePart{currQueue.name, currQueue.conditionIndex + 1, Ranges{currQueue.ranges.xRange, currQueue.ranges.mRange, Range{currQueue.ranges.aRange.low, condition.value}, currQueue.ranges.sRange}})
+					// true branch
+					queue = append(queue, QueuePart{condition.next, 0, Ranges{currQueue.ranges.xRange, currQueue.ranges.mRange, Range{condition.value + 1, currQueue.ranges.aRange.high}, currQueue.ranges.sRange}})
+				}
 			case "s":
-				high = currQueue.ranges.sRange.high
-				low = currQueue.ranges.sRange.low
-			}
-
-			// TODO figure out how to check if true or not --> check if completely satisfies condition
-
-			if isCompletelyInRange(low, high, condition.operator, condition.value) && condition.next == "A" {
-				// calculate the combinations and continue with the queue
-				combinations += calculateCombinations(currQueue.ranges)
-			} else if isCompletelyInRange(low, high, condition.operator, condition.value) && condition.next == "R" {
-				// just continue with the queue
-				continue queue
-			} else {
-				switch condition.category {
-				case "x":
-					// check the possible splits and put new work on queue on the current condition index
-					switch condition.operator {
-					case "<":
-						// true branch
-						queue = append(queue, QueuePart{condition.next, 0, Ranges{Range{currQueue.ranges.xRange.low, condition.value - 1}, currQueue.ranges.mRange, currQueue.ranges.aRange, currQueue.ranges.sRange}})
-						// false branch
-						queue = append(queue, QueuePart{currQueue.name, currQueue.conditionIndex + 1, Ranges{Range{condition.value, currQueue.ranges.xRange.high}, currQueue.ranges.mRange, currQueue.ranges.aRange, currQueue.ranges.sRange}})
-					case ">":
-						// false branch
-						queue = append(queue, QueuePart{currQueue.name, currQueue.conditionIndex + 1, Ranges{Range{currQueue.ranges.xRange.low, condition.value}, currQueue.ranges.mRange, currQueue.ranges.aRange, currQueue.ranges.sRange}})
-						// true branch
-						queue = append(queue, QueuePart{condition.next, 0, Ranges{Range{condition.value + 1, currQueue.ranges.xRange.high}, currQueue.ranges.mRange, currQueue.ranges.aRange, currQueue.ranges.sRange}})
-					}
-					continue queue
-				case "m":
-					// check the possible splits and put new work on queue on the current condition index
-					switch condition.operator {
-					case "<":
-						// true branch
-						queue = append(queue, QueuePart{condition.next, 0, Ranges{currQueue.ranges.xRange, Range{currQueue.ranges.mRange.low, condition.value - 1}, currQueue.ranges.aRange, currQueue.ranges.sRange}})
-						// false branch
-						queue = append(queue, QueuePart{currQueue.name, currQueue.conditionIndex + 1, Ranges{currQueue.ranges.xRange, Range{condition.value, currQueue.ranges.mRange.high}, currQueue.ranges.aRange, currQueue.ranges.sRange}})
-					case ">":
-						// false branch
-						queue = append(queue, QueuePart{currQueue.name, currQueue.conditionIndex + 1, Ranges{currQueue.ranges.xRange, Range{currQueue.ranges.mRange.low, condition.value}, currQueue.ranges.aRange, currQueue.ranges.sRange}})
-						// true branch
-						queue = append(queue, QueuePart{condition.next, 0, Ranges{currQueue.ranges.xRange, Range{condition.value + 1, currQueue.ranges.mRange.high}, currQueue.ranges.aRange, currQueue.ranges.sRange}})
-					}
-					continue queue
-				case "a":
-					// check the possible splits and put new work on queue on the current condition index
-					switch condition.operator {
-					case "<":
-						// true branch
-						queue = append(queue, QueuePart{condition.next, 0, Ranges{currQueue.ranges.xRange, currQueue.ranges.mRange, Range{currQueue.ranges.sRange.low, condition.value - 1}, currQueue.ranges.sRange}})
-						// false branch
-						queue = append(queue, QueuePart{currQueue.name, currQueue.conditionIndex + 1, Ranges{currQueue.ranges.xRange, currQueue.ranges.mRange, Range{condition.value, currQueue.ranges.sRange.high}, currQueue.ranges.sRange}})
-					case ">":
-						// false branch
-						queue = append(queue, QueuePart{currQueue.name, currQueue.conditionIndex + 1, Ranges{currQueue.ranges.xRange, currQueue.ranges.mRange, Range{currQueue.ranges.aRange.low, condition.value}, currQueue.ranges.sRange}})
-						// true branch
-						queue = append(queue, QueuePart{condition.next, 0, Ranges{currQueue.ranges.xRange, currQueue.ranges.mRange, Range{condition.value + 1, currQueue.ranges.aRange.high}, currQueue.ranges.sRange}})
-					}
-					continue queue
-				case "s":
-					// check the possible splits and put new work on queue on the current condition index
-					switch condition.operator {
-					case "<":
-						// true branch
-						queue = append(queue, QueuePart{condition.next, 0, Ranges{currQueue.ranges.xRange, currQueue.ranges.mRange, currQueue.ranges.aRange, Range{currQueue.ranges.sRange.low, condition.value - 1}}})
-						// false branch
-						queue = append(queue, QueuePart{currQueue.name, currQueue.conditionIndex + 1, Ranges{currQueue.ranges.xRange, currQueue.ranges.mRange, currQueue.ranges.aRange, Range{condition.value, currQueue.ranges.sRange.high}}})
-					case ">":
-						// true branch
-						queue = append(queue, QueuePart{currQueue.name, currQueue.conditionIndex + 1, Ranges{currQueue.ranges.xRange, currQueue.ranges.mRange, currQueue.ranges.aRange, Range{currQueue.ranges.sRange.low, condition.value}}})
-						// false branch
-						queue = append(queue, QueuePart{condition.next, 0, Ranges{currQueue.ranges.xRange, currQueue.ranges.mRange, currQueue.ranges.aRange, Range{condition.value + 1, currQueue.ranges.sRange.high}}})
-					}
-					continue queue
+				// check the possible splits and put new work on queue on the current condition index
+				switch condition.operator {
+				case "<":
+					// true branch
+					queue = append(queue, QueuePart{condition.next, 0, Ranges{currQueue.ranges.xRange, currQueue.ranges.mRange, currQueue.ranges.aRange, Range{currQueue.ranges.sRange.low, condition.value - 1}}})
+					// false branch
+					queue = append(queue, QueuePart{currQueue.name, currQueue.conditionIndex + 1, Ranges{currQueue.ranges.xRange, currQueue.ranges.mRange, currQueue.ranges.aRange, Range{condition.value, currQueue.ranges.sRange.high}}})
+				case ">":
+					// true branch
+					queue = append(queue, QueuePart{currQueue.name, currQueue.conditionIndex + 1, Ranges{currQueue.ranges.xRange, currQueue.ranges.mRange, currQueue.ranges.aRange, Range{currQueue.ranges.sRange.low, condition.value}}})
+					// false branch
+					queue = append(queue, QueuePart{condition.next, 0, Ranges{currQueue.ranges.xRange, currQueue.ranges.mRange, currQueue.ranges.aRange, Range{condition.value + 1, currQueue.ranges.sRange.high}}})
 				}
 			}
-
 		}
 	}
-
 	return combinations
 }
 
