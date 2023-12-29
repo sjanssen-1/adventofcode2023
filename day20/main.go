@@ -10,11 +10,16 @@ import (
 	"github.com/Goldziher/go-utils/maputils"
 )
 
-// https://adventofcode.com/2023/day/120
+// https://adventofcode.com/2023/day/20
 func main() {
 	moduleConfiguration := util.ScannerToStringSlice(*util.ReadFile("/Users/stefjanssens/git/adventofcode2023/day20/input.txt"))
 	defer util.TimeTrack(time.Now(), "main")
 
+	log.Default().Printf("P1: %d", part1(parseModules(moduleConfiguration)))
+	log.Default().Printf("P2: %d", part2(parseModules(moduleConfiguration)))
+}
+
+func parseModules(moduleConfiguration []string) map[string]Module {
 	modules := make(map[string]Module)
 
 	for _, moduleConfig := range moduleConfiguration {
@@ -36,9 +41,7 @@ func main() {
 			modules[conjunctionName] = conjunctionModule
 		}
 	}
-
-	log.Default().Printf("P1: %d", part1(modules))
-	log.Default().Printf("P2: %d", part2(modules))
+	return modules
 }
 
 type Module struct {
@@ -71,11 +74,15 @@ type Pulse struct {
 	destination string
 }
 
-func pressButton(modules map[string]Module) (int, int, bool) {
+func pressButton(modules map[string]Module) (int, int, map[string]bool) {
 	lows := 0
 	highs := 0
 
-	rxLow := false
+	// hardcoded to my input idgaf
+	bqSources := make(map[string]bool)
+	for key, _ := range modules["bq"].sourcesMemory {
+		bqSources[key] = false
+	}
 
 	buffer := []Pulse{{false, "me", "broadcaster"}}
 
@@ -91,9 +98,6 @@ func pressButton(modules map[string]Module) (int, int, bool) {
 
 		module, exists := modules[pulse.destination]
 		if !exists {
-			if !pulse.isHigh {
-				rxLow = true
-			}
 			continue
 		}
 
@@ -131,6 +135,10 @@ func pressButton(modules map[string]Module) (int, int, bool) {
 			} else {
 				// send high
 				for _, destination := range module.destinations {
+					// hardcoded to my input idgaf.
+					if destination == "bq" {
+						bqSources[pulse.destination] = true
+					}
 					buffer = append(buffer, Pulse{true, pulse.destination, destination})
 				}
 			}
@@ -138,7 +146,7 @@ func pressButton(modules map[string]Module) (int, int, bool) {
 		modules[pulse.destination] = module
 	}
 
-	return lows, highs, rxLow
+	return lows, highs, bqSources
 }
 
 func part1(modules map[string]Module) int {
@@ -153,13 +161,41 @@ func part1(modules map[string]Module) int {
 }
 
 func part2(modules map[string]Module) int {
-	counter := 1
+	counters := make([]int, 0)
+	counter := 0
 	for {
-		_, _, rx := pressButton(modules)
-		if rx {
+		counter++
+		// hardcoded to my input idgaf.
+		_, _, bqSources := pressButton(modules)
+		if slices.Contains(maputils.Values(bqSources), true) {
+			counters = append(counters, counter)
+		}
+
+		if len(counters) == len(bqSources) {
 			break
 		}
-		counter++
+
 	}
-	return counter
+	return LCM(counters[0], counters[1], counters[2:])
+}
+
+// greatest common divisor (GCD) via Euclidean algorithm
+func GCD(a, b int) int {
+	for b != 0 {
+		t := b
+		b = a % b
+		a = t
+	}
+	return a
+}
+
+// find Least Common Multiple (LCM) via GCD
+func LCM(a, b int, integers []int) int {
+	result := a * b / GCD(a, b)
+
+	for i := 0; i < len(integers); i++ {
+		result = LCM(result, integers[0], integers[1:])
+	}
+
+	return result
 }
