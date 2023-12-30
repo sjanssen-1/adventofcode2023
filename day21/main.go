@@ -12,15 +12,15 @@ import (
 
 // https://adventofcode.com/2023/day/21
 func main() {
-	demoGarden := util.ScannerToStringSlice(*util.ReadFile("/Users/stefjanssens/git/adventofcode2023/day21/demo_input.txt"))
-	garden := util.ScannerToStringSlice(*util.ReadFile("/Users/stefjanssens/git/adventofcode2023/day21/input.txt"))
+	demoGarden := util.ScannerToStringSlice(*util.ReadFile("C:\\Users\\janss\\git\\adventofcode2023\\day21\\demo_input.txt"))
+	garden := util.ScannerToStringSlice(*util.ReadFile("C:\\Users\\janss\\git\\adventofcode2023\\day21\\input.txt"))
 	defer util.TimeTrack(time.Now(), "main")
 
 	demoGardenGraph, startDemo := parseGarden(demoGarden)
 	gardenGraph, start := parseGarden(garden)
 
 	part1(gardenGraph, start, demoGardenGraph, startDemo)
-	part2()
+	part2(gardenGraph, start)
 }
 
 type Coordinate struct {
@@ -88,8 +88,33 @@ func debug(test []Coordinate) {
 	}
 }
 
-func part2() {
-	log.Default().Printf("P2: %d", 0)
+func part2(garden map[Coordinate][]Coordinate, start Coordinate) {
+	/*
+		p0 + n*(p1 - p0) + (n*(n-1)/2) * (p2 - p1)
+
+		where n = 26501365/131
+
+		26501365 are the steps to take and 131 is the total number of lines.
+
+		Eventually, we are solving a quadratic equation of the form ax^2 + bx + c
+
+		run the part 1 code for steps = 65, 196 and 327 and solve the equation to get the answer
+	*/
+
+	totalSteps := 26501365
+	totalLines := 131
+
+	p0 := dfs(garden, start, 65)
+	p1 := dfs(garden, start, 196)
+	p2 := dfs(garden, start, 327)
+
+	a := (p2 + p0 - 2*p1) / 2
+	b := p1 - p0 - a
+	c := p0
+	n := totalSteps / totalLines
+	result := a*n*n + b*n + c
+
+	log.Default().Printf("P2: %d", result)
 }
 
 func dfs(garden map[Coordinate][]Coordinate, start Coordinate, steps int) int {
