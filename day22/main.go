@@ -13,14 +13,14 @@ import (
 
 // https://adventofcode.com/2023/day/22
 func main() {
-	demoSnapshot := util.ScannerToStringSlice(*util.ReadFile("/Users/stefjanssens/git/adventofcode2023/day22/demo_input.txt"))
-	snapshot := util.ScannerToStringSlice(*util.ReadFile("/Users/stefjanssens/git/adventofcode2023/day22/input.txt"))
+	// demoSnapshot := util.ScannerToStringSlice(*util.ReadFile("C:\\Users\\janss\\git\\adventofcode2023\\day22\\demo_input.txt"))
+	snapshot := util.ScannerToStringSlice(*util.ReadFile("C:\\Users\\janss\\git\\adventofcode2023\\day22\\input.txt"))
 	defer util.TimeTrack(time.Now(), "main")
 
-	jengaTowerDemo := parseJengaTower(demoSnapshot)
+	// jengaTowerDemo := parseJengaTower(demoSnapshot)
 	jengaTower := parseJengaTower(snapshot)
 
-	log.Default().Printf("P1 demo: %d", part1(jengaTowerDemo))
+	// log.Default().Printf("P1 demo: %d", part1(jengaTowerDemo))
 	log.Default().Printf("P1: %d", part1(jengaTower))
 	log.Default().Printf("P2: %d", part2())
 }
@@ -101,6 +101,7 @@ loop:
 			}
 
 			if !collision {
+				log.Printf("Sorted %d", i)
 				jengaTower[i] = Brick{brick.id, brick.x, brick.y, brick.z - 1, brick.orientation, brick.size, brick.supports}
 				slices.SortFunc(jengaTower, sortBricks)
 				continue loop
@@ -190,11 +191,6 @@ func part1(jengaTower []Brick) int {
 	canDisintegrate := 0
 
 	for _, brick := range settledTower {
-		if brick.z == 1 && len(brick.supports) > 0 {
-			// ground level bricks that support others can never be disintegrated
-			continue
-		}
-
 		if len(brick.supports) == 0 {
 			// bricks that support nothing can always go
 			canDisintegrate++
