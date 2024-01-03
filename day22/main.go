@@ -13,24 +13,26 @@ import (
 
 // https://adventofcode.com/2023/day/22
 func main() {
-	// demoSnapshot := util.ScannerToStringSlice(*util.ReadFile("C:\\Users\\janss\\git\\adventofcode2023\\day22\\demo_input.txt"))
+	demoSnapshot := util.ScannerToStringSlice(*util.ReadFile("C:\\Users\\janss\\git\\adventofcode2023\\day22\\demo_input.txt"))
 	snapshot := util.ScannerToStringSlice(*util.ReadFile("C:\\Users\\janss\\git\\adventofcode2023\\day22\\input.txt"))
 	defer util.TimeTrack(time.Now(), "main")
 
-	// jengaTowerDemo := parseJengaTower(demoSnapshot)
+	jengaTowerDemo := parseJengaTower(demoSnapshot)
 	jengaTower := parseJengaTower(snapshot)
 
-	// log.Default().Printf("P1 demo: %d", part1(jengaTowerDemo))
+	log.Default().Printf("P1 demo: %d", part1(jengaTowerDemo))
 	log.Default().Printf("P1: %d", part1(jengaTower))
-	log.Default().Printf("P2: %d", part2())
+	log.Default().Printf("P2 demo: %d", part2(jengaTowerDemo))
+	log.Default().Printf("P2: %d", part2(jengaTower))
 }
 
 type Brick struct {
-	id          int
-	x, y, z     int
-	orientation string
-	size        int
-	supports    []int
+	id           int
+	x, y, z      int
+	orientation  string
+	size         int
+	supports     []int
+	supported_by []int
 }
 
 func NewBrick(id int, brick string) Brick {
@@ -47,13 +49,13 @@ func NewBrick(id int, brick string) Brick {
 
 	if split[0] == split[1] {
 		// single block brick
-		return Brick{id, tx, ty, tz, "x", 1, []int{}}
+		return Brick{id, tx, ty, tz, "x", 1, []int{}, []int{}}
 	} else if fx != tx {
-		return Brick{id, tx, ty, tz, "x", tx - fx + 1, []int{}}
+		return Brick{id, tx, ty, tz, "x", tx - fx + 1, []int{}, []int{}}
 	} else if fy != ty {
-		return Brick{id, tx, ty, tz, "y", ty - fy + 1, []int{}}
+		return Brick{id, tx, ty, tz, "y", ty - fy + 1, []int{}, []int{}}
 	} else { // fz != tz
-		return Brick{id, tx, ty, tz, "z", tz - fz + 1, []int{}}
+		return Brick{id, tx, ty, tz, "z", tz - fz + 1, []int{}, []int{}}
 	}
 }
 
@@ -63,7 +65,7 @@ func parseJengaTower(snapshot []string) []Brick {
 		jengaTower = append(jengaTower, NewBrick(id, brick))
 	}
 	slices.SortFunc(jengaTower, sortBricks)
-	return jengaTower
+	return settleTower(jengaTower)
 }
 
 func sortBricks(a, b Brick) int {
@@ -94,7 +96,7 @@ loop:
 					break
 				}
 
-				if isCollision(Brick{brick.id, brick.x, brick.y, brick.z - 1, brick.orientation, brick.size, brick.supports}, jengaTower[j]) {
+				if isCollision(Brick{brick.id, brick.x, brick.y, brick.z - 1, brick.orientation, brick.size, brick.supports, brick.supported_by}, jengaTower[j]) {
 					collision = true
 					break
 				}
@@ -102,7 +104,7 @@ loop:
 
 			if !collision {
 				log.Printf("Sorted %d", i)
-				jengaTower[i] = Brick{brick.id, brick.x, brick.y, brick.z - 1, brick.orientation, brick.size, brick.supports}
+				jengaTower[i] = Brick{brick.id, brick.x, brick.y, brick.z - 1, brick.orientation, brick.size, brick.supports, brick.supported_by}
 				slices.SortFunc(jengaTower, sortBricks)
 				continue loop
 			}
@@ -161,13 +163,10 @@ type Point struct {
 	x, y, z int
 }
 
-func part1(jengaTower []Brick) int {
-	settledTower := settleTower(jengaTower)
-
-	log.Print("settled")
-
+func part1(settledTower []Brick) int {
 	for i := len(settledTower) - 1; i > 0; i-- {
 		for j := i - 1; j >= 0; j-- {
+			originalIBrick := settledTower[i]
 			// move brick i one down to check for collisions
 			iBrick := Brick{
 				settledTower[i].id,
@@ -177,18 +176,36 @@ func part1(jengaTower []Brick) int {
 				settledTower[i].orientation,
 				settledTower[i].size,
 				settledTower[i].supports,
+				settledTower[i].supported_by,
 			}
 
 			if isCollision(iBrick, settledTower[j]) {
 				// j supports i
 				jBrick := settledTower[j]
-				jBrick.supports = append(jBrick.supports, iBrick.id)
+				jBrick.supports = append(jBrick.supports, originalIBrick.id)
+				originalIBrick.supported_by = append(originalIBrick.supported_by, jBrick.id)
 				settledTower[j] = jBrick
+				settledTower[i] = originalIBrick
 			}
 		}
 	}
 
 	canDisintegrate := 0
+
+	// TODO check with supported and supported_by sets
+	// for i := range settledTower {
+	// 	onlySupportingBrick := true
+	// 	for _, j := range settledTower[i].supports {
+	// 		if len(settledTower[j].supported_by) < 2 {
+	// 			onlySupportingBrick = false
+	// 			break
+	// 		}
+	// 	}
+
+	// 	if onlySupportingBrick {
+	// 		canDisintegrate++
+	// 	}
+	// }
 
 	for _, brick := range settledTower {
 		if len(brick.supports) == 0 {
@@ -215,6 +232,45 @@ func part1(jengaTower []Brick) int {
 	return canDisintegrate
 }
 
-func part2() int {
-	return 0
+func part2(settledTower []Brick) int {
+	totalFalling := 0
+
+	for i := range settledTower {
+		brick := settledTower[i]
+
+		queue := []int{}
+		for _, j := range brick.supports {
+			if len(settledTower[j].supported_by) == 1 {
+				queue = append(queue, j)
+			}
+		}
+
+		falling := queue
+		falling = append(falling, brick.id)
+
+		for len(queue) > 0 {
+			j := queue[0]
+			queue = queue[1:]
+
+			for _, k := range settledTower[j].supported_by {
+				if !slices.Contains(falling, k) {
+					// if everything that supports k is also in the slice of falling bricks
+					if sliceutils.Every(settledTower, func(value Brick, index int, slice []Brick) bool {
+						if slices.Contains(value.supports, k) && !slices.Contains(falling, value.id) {
+							return false
+						}
+						return true
+					}) {
+						queue = append(queue, k)
+						falling = append(falling, k)
+					}
+				}
+			}
+
+		}
+		totalFalling += len(falling) - 1
+	}
+
+	// log.Print(settledTower)
+	return totalFalling
 }
