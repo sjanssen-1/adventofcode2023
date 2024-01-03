@@ -21,8 +21,8 @@ func main() {
 
 	log.Default().Printf("P1 demo: %d", dfs(demoGraph, Point{1, 0}, Point{21, 22}))
 	log.Default().Printf("P1: %d", dfs(graph, Point{1, 0}, Point{139, 140}))
-	log.Default().Printf("P2 demo: %d", dfs(demoGraphNoIce, Point{1, 0}, Point{21, 22}))
-	log.Default().Printf("P2: %d", dfs(graphNoIce, Point{1, 0}, Point{139, 140}))
+	log.Default().Printf("P2 demo: %d", dfs2(demoGraphNoIce, Point{1, 0}, Point{21, 22}))
+	log.Default().Printf("P2: %d", dfs2(graphNoIce, Point{1, 0}, Point{139, 140}))
 }
 
 func parseGraph(trailMap []string) map[Point][]Edge {
@@ -161,25 +161,33 @@ func dfs(graph map[Point][]Edge, start, end Point) int {
 	return visited[end]
 }
 
-// Edge represents a directed edge in the graph with a weight.
+var seen []Point = []Point{}
+
+func dfs2(graph map[Point][]Edge, start, end Point) int {
+	if start == end {
+		return 0
+	}
+
+	m := -1
+	seen = append(seen, start)
+
+	for _, edge := range graph[start] {
+		if !slices.Contains(seen, edge.to) {
+			m = max(m, dfs2(graph, edge.to, end)+1)
+		}
+	}
+
+	seen = slices.DeleteFunc(seen, func(p Point) bool {
+		return p == start
+	})
+	return m
+
+}
+
 type Edge struct {
 	to Point
 }
 
 type Point struct {
 	x, y int
-}
-
-// Node represents a node in the graph with its index and the edges leading from it.
-type Node struct {
-	Index int
-	Edges []Edge
-}
-
-func part1() int {
-	return 0
-}
-
-func part2() int {
-	return 0
 }
