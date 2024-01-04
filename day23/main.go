@@ -161,27 +161,30 @@ func dfs(graph map[Point][]Edge, start, end Point) int {
 	return visited[end]
 }
 
-var seen []Point = []Point{}
-
 func dfs2(graph map[Point][]Edge, start, end Point) int {
-	if start == end {
-		return 0
-	}
+	toVisit := []Point{start}
+	visited := map[Point]int{}
+	visited[start] = 0
 
-	m := -1
-	seen = append(seen, start)
+	for len(toVisit) > 0 {
+		current := toVisit[0]
+		// log.Print(current)
+		toVisit = toVisit[1:]
 
-	for _, edge := range graph[start] {
-		if !slices.Contains(seen, edge.to) {
-			m = max(m, dfs2(graph, edge.to, end)+1)
+		edges := graph[current]
+		for _, edge := range edges {
+			if _, exists := visited[edge.to]; !exists {
+				visited[edge.to] = max(visited[current]+1, visited[edge.to])
+				if edge.to == end {
+					log.Printf("End found %d", visited[edge.to])
+				}
+				toVisit = slices.Insert(toVisit, 0, edge.to)
+			}
 		}
+
 	}
 
-	seen = slices.DeleteFunc(seen, func(p Point) bool {
-		return p == start
-	})
-	return m
-
+	return visited[end]
 }
 
 type Edge struct {
